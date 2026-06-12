@@ -1,10 +1,11 @@
-package main.java.servlet; 
+package servlet; 
 
 import jakarta.servlet.ServletException;        
 import jakarta.servlet.http.HttpServlet;          
 import jakarta.servlet.http.HttpServletRequest;   
 import jakarta.servlet.http.HttpServletResponse;  
 import java.io.IOException;
+import java.io.PrintWriter;
 
 public class FrontControllerServlet extends HttpServlet {
 
@@ -26,6 +27,9 @@ public class FrontControllerServlet extends HttpServlet {
         if (path == null) {
             path = "/";
         }
-        System.out.println("Path: " + path);
+        response.setContentType("text/html;charset=UTF-8");
+        
+        PrintWriter out = response.getWriter();
+        out.println(path);
     }
 }
