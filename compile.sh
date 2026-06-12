@@ -1,0 +1,1 @@
+javac -cp "lib/jakarta.servlet-api-6.0.0.jar" -d WEB-INF/classes src/main/java/servlet/FrontControllerServlet.java
