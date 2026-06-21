@@ -19,3 +19,23 @@ Sprint1:
                     et retourne toutes les classe qui sont annoter dans cette package  
                 prend en parametre une annotaion 
 
+Sprint2:
+    Objectif:
+        Quand on tape un url  on sait quel est le controller et la methodes associe a cela
+
+    
+    Creer un annotation de type methode, a besoin d'une variable
+
+    Dans ApplicationTest:
+        Avoir une classe EmpController anooter @controller
+            Avoir une methode liste() annote @urlMapping("/employer")
+
+
+    Dans affichage via processRequest:
+        /emplist            EmpController       methode:liste
+        /emplist/new        EmpController       methode:create
+
+
+    Si on ne connait pas l'url donc on fait une throws Exception et affiche toutes les listes qu'il connait 
+
+    Si on connait on affiche seulement cette url correspondant 
