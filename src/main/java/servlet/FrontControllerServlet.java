@@ -19,29 +19,6 @@ public class FrontControllerServlet extends HttpServlet {
     List<Class<?>> controllers;
     HashMap<String, Mapping> urlMappings = new HashMap<>();
 
-    // @Override
-    // public void init() {
-
-    // try {
-    // controllers = Utilitaire.getClassesAnnotated(
-    // "controller",
-    // Controller.class);
-
-    // for (Class<?> c : controllers) {
-
-    // System.out.println(
-    // "Controller trouvé : "
-    // + c.getName());
-    // }
-
-    // } catch (Exception e) {
-
-    // e.printStackTrace();
-
-    // }
-
-    // }
-
     @Override
     public void init() {
         try {

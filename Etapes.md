@@ -39,3 +39,10 @@ Sprint2:
     Si on ne connait pas l'url donc on fait une throws Exception et affiche toutes les listes qu'il connait 
 
     Si on connait on affiche seulement cette url correspondant 
+
+
+Sprint3
+
+
+
+
