@@ -97,9 +97,30 @@ public class FrontControllerServlet extends HttpServlet {
         response.setContentType("text/html;charset=UTF-8");
 
         String path = request.getPathInfo();
+        String servletPath = request.getServletPath();
 
-        if (path == null) {
-            path = "/";
+        if (path == null || "/".equals(path)) {
+            if (servletPath != null && !"".equals(servletPath) && !"/".equals(servletPath)) {
+                path = servletPath;
+            } else {
+                String requestUri = request.getRequestURI();
+                String contextPath = request.getContextPath();
+                if (requestUri != null && contextPath != null && requestUri.startsWith(contextPath)) {
+                    String suffix = requestUri.substring(contextPath.length());
+                    if (suffix != null && !"".equals(suffix) && !"/".equals(suffix)) {
+                        path = suffix;
+                    } else {
+                        path = "/";
+                    }
+                } else {
+                    path = "/";
+                }
+            }
+        }
+
+        if (path.endsWith(".jsp") || path.endsWith(".html") || path.endsWith(".css") || path.endsWith(".js")) {
+            request.getRequestDispatcher(path).forward(request, response);
+            return;
         }
 
         String httpMethod = request.getMethod();
@@ -108,9 +129,8 @@ public class FrontControllerServlet extends HttpServlet {
 
         Mapping mapping = urlMappings.get(key);
 
-        PrintWriter out = response.getWriter();
-
         if (mapping == null) {
+            PrintWriter out = response.getWriter();
 
             out.println("<h3>URL inconnue</h3>");
             out.println("URL demandée : " + path);
@@ -147,16 +167,30 @@ public class FrontControllerServlet extends HttpServlet {
             if (result != null && result instanceof ModelAndView) {
                 ModelAndView mv = (ModelAndView) result;
 
-                out.println("<h3>ModelAndView</h3>");
-                out.println("Vue : " + mv.getView() + "<br>");
-                out.println("Données : <br>");
-
-                for (String keyAttr : mv.getData().keySet()) {
-                    out.println(keyAttr + " : " + mv.getData().get(keyAttr) + "<br>");
+                if (mv.getData().containsKey("html")) {
+                    response.getWriter().println(mv.getData().get("html"));
+                    return;
                 }
 
+                for (String keyAttr : mv.getData().keySet()) {
+                    request.setAttribute(keyAttr, mv.getData().get(keyAttr));
+                }
+
+                String viewPath = mv.getView();
+                if (viewPath == null || viewPath.isBlank()) {
+                    response.getWriter().println("Vue introuvable");
+                    return;
+                }
+
+                if (!viewPath.startsWith("/")) {
+                    viewPath = "/" + viewPath;
+                }
+
+                request.getRequestDispatcher(viewPath).forward(request, response);
                 return;
             }
+
+            PrintWriter out = response.getWriter();
 
             // Si la méthode ne retourne pas ModelAndView, afficher les infos basiques
             out.println(
