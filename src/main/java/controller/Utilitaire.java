@@ -41,7 +41,6 @@ public class Utilitaire {
 
             String fileName = file.getName();
 
-            // On ne prend que les .class
             if (fileName.endsWith(".class")) {
 
                 // Enlever .class
