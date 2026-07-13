@@ -25,6 +25,20 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() {
+        // Lire la map des routes construite par AppStartupListener
+        Object attr = getServletContext().getAttribute("urlMappings");
+
+        if (attr != null && attr instanceof HashMap) {
+            try {
+                //noinspection unchecked
+                urlMappings = (HashMap<UrlMethod, Mapping>) attr;
+                return;
+            } catch (ClassCastException e) {
+                throw new RuntimeException("Attribut urlMappings invalide dans ServletContext", e);
+            }
+        }
+
+        // Fallback: construire la map ici si le listener n'est pas présent
         try {
             controllers = Utilitaire.getClassesAnnotated(
                     "controller",
