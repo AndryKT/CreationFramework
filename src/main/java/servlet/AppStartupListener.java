@@ -40,11 +40,14 @@ public class AppStartupListener implements ServletContextListener {
                                 url.method());
 
                         if (urlMappings.containsKey(key)) {
-                            throw new RuntimeException(
-                                    "Route dupliquée : "
-                                            + url.method() + " "
-                                            + url.value());
+                            ctx.log("Route dupliquée ignorée : "
+                                    + url.method() + " "
+                                    + url.value());
+                            continue;
                         }
+
+                        ctx.log("AppStartupListener démarré");
+                        System.out.println("AppStartupListener démarré");
 
                         urlMappings.put(
                                 key,
@@ -52,6 +55,8 @@ public class AppStartupListener implements ServletContextListener {
                     }
                 }
             }
+
+            System.out.println("AppStartupListener démarré");
 
             ctx.setAttribute("urlMappings", urlMappings);
 

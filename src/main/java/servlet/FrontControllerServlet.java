@@ -58,11 +58,13 @@ public class FrontControllerServlet extends HttpServlet {
                                 url.method());
 
                         if (urlMappings.containsKey(key)) {
-                            throw new ServletException(
-                                    "Route dupliquée : "
-                                            + url.method() + " "
-                                            + url.value());
+                            getServletContext().log("Route dupliquée ignorée : "
+                                    + url.method() + " "
+                                    + url.value());
+                            continue;
                         }
+
+                        System.out.println("AppStartupListener démarré");
 
                         urlMappings.put(
                                 key,
