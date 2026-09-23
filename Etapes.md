@@ -244,3 +244,10 @@ Andry
 ```
 
 ---
+
+
+## Sprint6
+
+    Ajouter un autre annotation niveau method:
+    Et si pas annoter avec cette annoation alors on l'envoir comme avnat dans les view sinon on affiche direct le Json
+    Si la valeur de retour de la methode est string donc on l'affiche direct avec printwritter , sinon on le convertis d'abord en Json
