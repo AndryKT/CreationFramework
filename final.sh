@@ -3,12 +3,12 @@
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-TOMCAT_DIR="$HOME/Documents/S4/tomcat"
+TOMCAT_DIR="$HOME/Documents/S5/tomcat"
 APP_NAME="ApplicationTestCreationFramework"
 JAR_PATH="lib/jakarta.servlet-api-6.0.0.jar"
 
 # Nom du JAR que vous allez créer
-FRAMEWORK_JAR="HR-servlet-capture-url.jar"
+FRAMEWORK_JAR="Sprint6-api.jar"
 
 # Chemins de destination dans Tomcat
 TARGET_LIB_DIR="$TOMCAT_DIR/webapps/$APP_NAME/WEB-INF/lib"
