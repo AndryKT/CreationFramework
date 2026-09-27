@@ -1,5 +1,6 @@
 package servlet;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import controller.Controller;
+import controller.JsonResponse;
 import controller.UrlMapping;
 import controller.Utilitaire;
 import model.Mapping;
@@ -22,6 +24,7 @@ public class FrontControllerServlet extends HttpServlet {
 
     List<Class<?>> controllers;
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void init() {
@@ -163,6 +166,17 @@ public class FrontControllerServlet extends HttpServlet {
             Method controllerMethod = controllerClass.getDeclaredMethod(mapping.getMethod());
 
             Object result = controllerMethod.invoke(controllerInstance);
+
+            if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
+                if (result instanceof String) {
+                    response.setContentType("text/plain;charset=UTF-8");
+                    response.getWriter().print(result);
+                } else {
+                    response.setContentType("application/json;charset=UTF-8");
+                    objectMapper.writeValue(response.getWriter(), result);
+                }
+                return;
+            }
 
             if (result != null && result instanceof ModelAndView) {
                 ModelAndView mv = (ModelAndView) result;

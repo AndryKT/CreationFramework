@@ -5,7 +5,7 @@
 # ==============================================================================
 TOMCAT_DIR="$HOME/Documents/S5/tomcat"
 APP_NAME="ApplicationTestCreationFramework"
-JAR_PATH="lib/jakarta.servlet-api-6.0.0.jar"
+LIB_PATH="lib/*"
 
 # Nom du JAR que vous allez créer
 FRAMEWORK_JAR="Sprint6-api.jar"
@@ -27,7 +27,7 @@ mkdir -p WEB-INF/classes
 echo -e "${BLUE}[2/5] Compilation du FrontControllerServlet...${NC}"
 # javac -cp "$JAR_PATH" -d WEB-INF/classes src/main/java/servlet/FrontControllerServlet.java
 javac \
--cp "$JAR_PATH" \
+-cp "$LIB_PATH" \
 -d WEB-INF/classes \
 $(find src/main/java -name "*.java")
 
@@ -55,6 +55,9 @@ rm -rf "$TOMCAT_DIR/webapps/$APP_NAME/WEB-INF/classes/servlet"
 
 # Copie du JAR
 cp "$FRAMEWORK_JAR" "$TARGET_LIB_DIR/"
+
+# Jackson est une dépendance d'exécution du framework.
+cp lib/jackson-*.jar "$TARGET_LIB_DIR/"
 
 echo -e "${BLUE}[5/5] Redémarrage de Tomcat...${NC}"
 "$TOMCAT_DIR/bin/shutdown.sh" > /dev/null 2>&1
