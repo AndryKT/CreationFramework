@@ -251,3 +251,16 @@ Andry
     Ajouter un autre annotation niveau method:
     Et si pas annoter avec cette annoation alors on l'envoir comme avantt dans les view sinon on affiche direct le Json
     Si la valeur de retour de la methode est string donc on l'affiche direct avec printwritter , sinon on le convertis d'abord en Json
+
+## Sprint7
+    Binding:
+        (donnees viwe -> controller)
+        les donnees recus d'un formulaire -> controller
+
+
+    1ere etape:
+        recuperer l'url demander
+        savoir quelle methlode est associer a cette url
+        recuperer les paramettre 
+        creer un methode save(string nom , string prenom) , la valeur par defaut de ces paramettre (methode)sont null
+            ensuite voir les parametres envoyer avec l'url et si c;est pareil alors on les match et les valeur des paramettre change en ce qui est recus
