@@ -28,6 +28,7 @@ echo -e "${BLUE}[2/5] Compilation du FrontControllerServlet...${NC}"
 # javac -cp "$JAR_PATH" -d WEB-INF/classes src/main/java/servlet/FrontControllerServlet.java
 javac \
 -cp "$LIB_PATH" \
+-parameters \
 -d WEB-INF/classes \
 $(find src/main/java -name "*.java")
 
