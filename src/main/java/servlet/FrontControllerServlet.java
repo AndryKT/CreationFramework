@@ -16,6 +16,7 @@ import java.util.List;
 
 import controller.Controller;
 import controller.JsonResponse;
+import controller.Param;
 import controller.UrlMapping;
 import controller.Utilitaire;
 import model.Mapping;
@@ -254,7 +255,8 @@ public class FrontControllerServlet extends HttpServlet {
 
         for (int index = 0; index < parameters.length; index++) {
             Parameter parameter = parameters[index];
-            String parameterName = parameter.getName();
+            Param param = parameter.getAnnotation(Param.class);
+            String parameterName = param != null ? param.value() : parameter.getName();
             String value = request.getParameter(parameterName);
 
             try {
