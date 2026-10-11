@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import model.ModelAndView;
 import java.lang.reflect.Method;
@@ -35,7 +37,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         if (attr != null && attr instanceof HashMap) {
             try {
-                //noinspection unchecked
+                // noinspection unchecked
                 urlMappings = (HashMap<UrlMethod, Mapping>) attr;
                 return;
             } catch (ClassCastException e) {
@@ -257,19 +259,89 @@ public class FrontControllerServlet extends HttpServlet {
             Parameter parameter = parameters[index];
             Param param = parameter.getAnnotation(Param.class);
             String parameterName = param != null ? param.value() : parameter.getName();
-            String value = request.getParameter(parameterName);
 
             try {
-                arguments[index] = convertValue(value, parameter.getType());
+                if (isSimpleType(parameter.getType())) {
+                    String value = request.getParameter(parameterName);
+                    arguments[index] = convertValue(value, parameter.getType());
+                } else {
+                    arguments[index] = bindObject(parameter.getType(), request);
+                }
             } catch (IllegalArgumentException e) {
                 throw new ServletException(
                         "Impossible de convertir le paramètre '"
                                 + parameterName + "' vers " + parameter.getType().getSimpleName(),
                         e);
+            } catch (ReflectiveOperationException e) {
+                throw new ServletException(
+                        "Impossible de construire l'objet "
+                                + parameter.getType().getName(),
+                        e);
             }
         }
 
         return arguments;
+    }
+
+    
+    // Construit automatiquement un objet à partir des paramètres HTTP.
+    // Les noms des paramètres doivent correspondre aux noms des attributs.
+    
+    private Object bindObject(Class<?> objectType,
+            HttpServletRequest request) throws ReflectiveOperationException {
+        Object object = createObject(objectType);
+        populateObject(object, request);
+        return object;
+    }
+
+    // Crée l'objet avec son constructeur sans argument. */
+    private Object createObject(Class<?> objectType)
+            throws ReflectiveOperationException {
+        return objectType.getDeclaredConstructor().newInstance();
+    }
+
+    // Remplit les attributs de l'objet à partir de la requête HTTP. */
+    private void populateObject(Object object,
+            HttpServletRequest request) throws IllegalAccessException {
+        Class<?> objectType = object.getClass();
+
+        for (Field field : objectType.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers())
+                    || Modifier.isFinal(field.getModifiers())) {
+                continue;
+            }
+
+            String value = request.getParameter(field.getName());
+            if (value == null) {
+                continue;
+            }
+
+            try {
+                Object convertedValue = convertValue(value, field.getType());
+                field.setAccessible(true);
+                field.set(object, convertedValue);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        "Impossible de convertir le champ '"
+                                + field.getName() + "' vers "
+                                + field.getType().getSimpleName(),
+                        e);
+            }
+        }
+    }
+
+    // Indique si le type correspond à un paramètre simple. */
+    private boolean isSimpleType(Class<?> type) {
+        return type == String.class
+                || type == boolean.class || type == Boolean.class
+                || type == char.class || type == Character.class
+                || type == byte.class || type == Byte.class
+                || type == short.class || type == Short.class
+                || type == int.class || type == Integer.class
+                || type == long.class || type == Long.class
+                || type == float.class || type == Float.class
+                || type == double.class || type == Double.class
+                || type.isEnum();
     }
 
     private Object convertValue(String value, Class<?> targetType) {
@@ -303,15 +375,24 @@ public class FrontControllerServlet extends HttpServlet {
             }
         }
 
-        if (targetType == String.class) return value;
-        if (targetType == boolean.class || targetType == Boolean.class) return Boolean.valueOf(value);
-        if (targetType == char.class || targetType == Character.class) return value.charAt(0);
-        if (targetType == byte.class || targetType == Byte.class) return Byte.valueOf(value);
-        if (targetType == short.class || targetType == Short.class) return Short.valueOf(value);
-        if (targetType == int.class || targetType == Integer.class) return Integer.valueOf(value);
-        if (targetType == long.class || targetType == Long.class) return Long.valueOf(value);
-        if (targetType == float.class || targetType == Float.class) return Float.valueOf(value);
-        if (targetType == double.class || targetType == Double.class) return Double.valueOf(value);
+        if (targetType == String.class)
+            return value;
+        if (targetType == boolean.class || targetType == Boolean.class)
+            return Boolean.valueOf(value);
+        if (targetType == char.class || targetType == Character.class)
+            return value.charAt(0);
+        if (targetType == byte.class || targetType == Byte.class)
+            return Byte.valueOf(value);
+        if (targetType == short.class || targetType == Short.class)
+            return Short.valueOf(value);
+        if (targetType == int.class || targetType == Integer.class)
+            return Integer.valueOf(value);
+        if (targetType == long.class || targetType == Long.class)
+            return Long.valueOf(value);
+        if (targetType == float.class || targetType == Float.class)
+            return Float.valueOf(value);
+        if (targetType == double.class || targetType == Double.class)
+            return Double.valueOf(value);
         if (targetType.isEnum()) {
             return Enum.valueOf(targetType.asSubclass(Enum.class), value);
         }
