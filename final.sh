@@ -8,7 +8,7 @@ APP_NAME="ApplicationTestCreationFramework"
 LIB_PATH="lib/*"
 
 # Nom du JAR que vous allez créer
-FRAMEWORK_JAR="Sprint6-api.jar"
+FRAMEWORK_JAR="Sprint7-api.jar"
 
 # Chemins de destination dans Tomcat
 TARGET_LIB_DIR="$TOMCAT_DIR/webapps/$APP_NAME/WEB-INF/lib"
@@ -28,6 +28,7 @@ echo -e "${BLUE}[2/5] Compilation du FrontControllerServlet...${NC}"
 # javac -cp "$JAR_PATH" -d WEB-INF/classes src/main/java/servlet/FrontControllerServlet.java
 javac \
 -cp "$LIB_PATH" \
+-parameters \
 -d WEB-INF/classes \
 $(find src/main/java -name "*.java")
 

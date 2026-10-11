@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Parameter;
 import model.ModelAndView;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ import java.util.List;
 
 import controller.Controller;
 import controller.JsonResponse;
+import controller.Param;
 import controller.UrlMapping;
 import controller.Utilitaire;
 import model.Mapping;
@@ -163,9 +165,10 @@ public class FrontControllerServlet extends HttpServlet {
             Class<?> controllerClass = Class.forName(mapping.getController());
             Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-            Method controllerMethod = controllerClass.getDeclaredMethod(mapping.getMethod());
+            Method controllerMethod = findControllerMethod(controllerClass, mapping, key);
+            Object[] arguments = bindArguments(controllerMethod, request);
 
-            Object result = controllerMethod.invoke(controllerInstance);
+            Object result = controllerMethod.invoke(controllerInstance, arguments);
 
             if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
                 if (result instanceof String) {
@@ -223,5 +226,96 @@ public class FrontControllerServlet extends HttpServlet {
                 | InvocationTargetException e) {
             throw new ServletException("Erreur lors de l'invocation du controller", e);
         }
+    }
+
+    private Method findControllerMethod(Class<?> controllerClass,
+            Mapping mapping,
+            UrlMethod requestedRoute) throws NoSuchMethodException {
+        for (Method method : controllerClass.getDeclaredMethods()) {
+            if (!method.getName().equals(mapping.getMethod())) {
+                continue;
+            }
+
+            UrlMapping urlMapping = method.getAnnotation(UrlMapping.class);
+            if (urlMapping != null
+                    && urlMapping.value().equals(requestedRoute.getUrl())
+                    && urlMapping.method().equalsIgnoreCase(requestedRoute.getMethod())) {
+                return method;
+            }
+        }
+
+        throw new NoSuchMethodException(
+                "Méthode introuvable : " + mapping.getController() + "." + mapping.getMethod());
+    }
+
+    private Object[] bindArguments(Method controllerMethod,
+            HttpServletRequest request) throws ServletException {
+        Parameter[] parameters = controllerMethod.getParameters();
+        Object[] arguments = new Object[parameters.length];
+
+        for (int index = 0; index < parameters.length; index++) {
+            Parameter parameter = parameters[index];
+            Param param = parameter.getAnnotation(Param.class);
+            String parameterName = param != null ? param.value() : parameter.getName();
+            String value = request.getParameter(parameterName);
+
+            try {
+                arguments[index] = convertValue(value, parameter.getType());
+            } catch (IllegalArgumentException e) {
+                throw new ServletException(
+                        "Impossible de convertir le paramètre '"
+                                + parameterName + "' vers " + parameter.getType().getSimpleName(),
+                        e);
+            }
+        }
+
+        return arguments;
+    }
+
+    private Object convertValue(String value, Class<?> targetType) {
+        if (value == null) {
+            if (!targetType.isPrimitive()) {
+                return null;
+            }
+            if (targetType == boolean.class) {
+                return false;
+            }
+            if (targetType == char.class) {
+                return '\0';
+            }
+            if (targetType == byte.class) {
+                return (byte) 0;
+            }
+            if (targetType == short.class) {
+                return (short) 0;
+            }
+            if (targetType == int.class) {
+                return 0;
+            }
+            if (targetType == long.class) {
+                return 0L;
+            }
+            if (targetType == float.class) {
+                return 0F;
+            }
+            if (targetType == double.class) {
+                return 0D;
+            }
+        }
+
+        if (targetType == String.class) return value;
+        if (targetType == boolean.class || targetType == Boolean.class) return Boolean.valueOf(value);
+        if (targetType == char.class || targetType == Character.class) return value.charAt(0);
+        if (targetType == byte.class || targetType == Byte.class) return Byte.valueOf(value);
+        if (targetType == short.class || targetType == Short.class) return Short.valueOf(value);
+        if (targetType == int.class || targetType == Integer.class) return Integer.valueOf(value);
+        if (targetType == long.class || targetType == Long.class) return Long.valueOf(value);
+        if (targetType == float.class || targetType == Float.class) return Float.valueOf(value);
+        if (targetType == double.class || targetType == Double.class) return Double.valueOf(value);
+        if (targetType.isEnum()) {
+            return Enum.valueOf(targetType.asSubclass(Enum.class), value);
+        }
+
+        throw new IllegalArgumentException("Type non supporté");
     }
 }
