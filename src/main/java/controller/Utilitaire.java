@@ -44,8 +44,7 @@ public class Utilitaire {
             if (fileName.endsWith(".class")) {
 
                 // Enlever .class
-                String className =
-                        packageName + "."
+                String className = packageName + "."
                         + fileName.substring(
                                 0,
                                 fileName.length() - 6);

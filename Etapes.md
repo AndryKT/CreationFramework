@@ -264,3 +264,9 @@ Andry
         recuperer les paramettre 
         creer un methode save(string nom , string prenom) , la valeur par defaut de ces paramettre (methode)sont null
             ensuite voir les parametres envoyer avec l'url et si c;est pareil alors on les match et les valeur des paramettre change en ce qui est recus
+
+
+## Sprint 7 bis:
+    Binding mais cette fois dans la fonction ce n'est plus en dur comme nom , prenom , age mais de le faire de type Object par exemple Personne
+
+    Donc c'est le code qui fait en sorte et cherche quelle class tous ces paramettre font reference

@@ -35,7 +35,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         if (attr != null && attr instanceof HashMap) {
             try {
-                //noinspection unchecked
+                // noinspection unchecked
                 urlMappings = (HashMap<UrlMethod, Mapping>) attr;
                 return;
             } catch (ClassCastException e) {
@@ -303,15 +303,24 @@ public class FrontControllerServlet extends HttpServlet {
             }
         }
 
-        if (targetType == String.class) return value;
-        if (targetType == boolean.class || targetType == Boolean.class) return Boolean.valueOf(value);
-        if (targetType == char.class || targetType == Character.class) return value.charAt(0);
-        if (targetType == byte.class || targetType == Byte.class) return Byte.valueOf(value);
-        if (targetType == short.class || targetType == Short.class) return Short.valueOf(value);
-        if (targetType == int.class || targetType == Integer.class) return Integer.valueOf(value);
-        if (targetType == long.class || targetType == Long.class) return Long.valueOf(value);
-        if (targetType == float.class || targetType == Float.class) return Float.valueOf(value);
-        if (targetType == double.class || targetType == Double.class) return Double.valueOf(value);
+        if (targetType == String.class)
+            return value;
+        if (targetType == boolean.class || targetType == Boolean.class)
+            return Boolean.valueOf(value);
+        if (targetType == char.class || targetType == Character.class)
+            return value.charAt(0);
+        if (targetType == byte.class || targetType == Byte.class)
+            return Byte.valueOf(value);
+        if (targetType == short.class || targetType == Short.class)
+            return Short.valueOf(value);
+        if (targetType == int.class || targetType == Integer.class)
+            return Integer.valueOf(value);
+        if (targetType == long.class || targetType == Long.class)
+            return Long.valueOf(value);
+        if (targetType == float.class || targetType == Float.class)
+            return Float.valueOf(value);
+        if (targetType == double.class || targetType == Double.class)
+            return Double.valueOf(value);
         if (targetType.isEnum()) {
             return Enum.valueOf(targetType.asSubclass(Enum.class), value);
         }
