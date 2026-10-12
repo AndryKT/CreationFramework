@@ -5,16 +5,21 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.nio.file.Paths;
+
 import model.ModelAndView;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import controller.Controller;
 import controller.JsonResponse;
@@ -283,10 +288,9 @@ public class FrontControllerServlet extends HttpServlet {
         return arguments;
     }
 
-    
-    // Construit automatiquement un objet à partir des paramètres HTTP.
-    // Les noms des paramètres doivent correspondre aux noms des attributs.
-    
+    // Construit automatiquement un objet à partir des paramètres HTTP
+    // Les noms des paramètres doivent correspondre aux noms des attributs
+
     private Object bindObject(Class<?> objectType,
             HttpServletRequest request) throws ReflectiveOperationException {
         Object object = createObject(objectType);
@@ -294,13 +298,13 @@ public class FrontControllerServlet extends HttpServlet {
         return object;
     }
 
-    // Crée l'objet avec son constructeur sans argument. */
+    // Crée l'objet avec son constructeur sans argument
     private Object createObject(Class<?> objectType)
             throws ReflectiveOperationException {
         return objectType.getDeclaredConstructor().newInstance();
     }
 
-    // Remplit les attributs de l'objet à partir de la requête HTTP. */
+    // Remplit les attributs de l'objet à partir de la requête HTTP
     private void populateObject(Object object,
             HttpServletRequest request) throws IllegalAccessException {
         Class<?> objectType = object.getClass();
@@ -330,7 +334,7 @@ public class FrontControllerServlet extends HttpServlet {
         }
     }
 
-    // Indique si le type correspond à un paramètre simple. */
+    // Indique si le type correspond à un paramètre simple
     private boolean isSimpleType(Class<?> type) {
         return type == String.class
                 || type == boolean.class || type == Boolean.class
@@ -398,5 +402,34 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         throw new IllegalArgumentException("Type non supporté");
+    }
+
+    private boolean isMultipartRequest(HttpServletRequest request) {
+        String contentType = request.getContentType();
+        return contentType != null && contentType.toLowerCase().startsWith("multipart/");
+    }
+
+    private MapFile convertPartToMapFile(Part part) throws Exception {
+        if (part == null || part.getSize() == 0) {
+            return null;
+        }
+
+        String submittedName = part.getSubmittedFileName();
+        String fileName = submittedName == null ? "" : Paths.get(submittedName).getFileName().toString();
+
+        String extension = "";
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex >= 0) {
+            extension = fileName.substring(dotIndex + 1);
+        }
+
+        byte[] bytes = part.getInputStream().readAllBytes();
+
+        MapFile mapFile = new MapFile();
+        mapFile.setNom(fileName);
+        mapFile.setExtension(extension);
+        mapFile.setBytes(bytes);
+
+        return mapFile;
     }
 }

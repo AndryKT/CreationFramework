@@ -270,3 +270,14 @@ Andry
     Binding mais cette fois dans la fonction ce n'est plus en dur comme nom , prenom , age mais de le faire de type Object par exemple Personne
 
     Donc c'est le code qui fait en sorte et cherche quelle class tous ces paramettre font reference
+
+
+## Sprint 8:
+    Upload de fichier 
+
+    Cree une classe MapFile
+        nom du fichier
+        extension
+        tableau bytes
+
+    Dans l'instance de l'objet on regarde si contient un attribut de type MapFile
