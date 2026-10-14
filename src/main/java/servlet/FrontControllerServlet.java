@@ -2,6 +2,7 @@ package servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,7 +29,10 @@ import controller.UrlMapping;
 import controller.Utilitaire;
 import model.Mapping;
 import model.UrlMethod;
+import model.MapFile;
 
+
+@MultipartConfig 
 public class FrontControllerServlet extends HttpServlet {
 
     List<Class<?>> controllers;
@@ -426,9 +430,9 @@ public class FrontControllerServlet extends HttpServlet {
         byte[] bytes = part.getInputStream().readAllBytes();
 
         MapFile mapFile = new MapFile();
-        mapFile.setNom(fileName);
-        mapFile.setExtension(extension);
-        mapFile.setBytes(bytes);
+        mapFile.setNameFile(fileName);
+        mapFile.setExtensionFile(extension);
+        mapFile.setContentFile(bytes);
 
         return mapFile;
     }
