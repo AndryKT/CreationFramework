@@ -6,11 +6,13 @@ public class MapFile {
     private String nameFile;
     private String extensionFile;
     private byte[] contentFile;
+    private String contentType;
 
-    public MapFile(String nameFile, String extensionFile, byte[] contentFile) {
+    public MapFile(String nameFile, String extensionFile, byte[] contentFile, String contentType) {
         this.nameFile = nameFile;
         this.extensionFile = extensionFile;
         this.contentFile = contentFile;
+        this.contentType = contentType;
     }
 
     public MapFile() {
@@ -39,5 +41,13 @@ public class MapFile {
 
     public void setContentFile(byte[] contentFile) {
         this.contentFile = contentFile;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 }
