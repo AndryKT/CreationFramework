@@ -15,6 +15,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import model.ModelAndView;
 import java.lang.reflect.Method;
@@ -37,9 +39,15 @@ public class FrontControllerServlet extends HttpServlet {
     List<Class<?>> controllers;
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private Path uploadDirectory;
 
     @Override
     public void init() {
+        String configuredUploadPath = getServletContext().getInitParameter("upload.path");
+        if (configuredUploadPath != null && !configuredUploadPath.isBlank()) {
+            uploadDirectory = Paths.get(configuredUploadPath).toAbsolutePath().normalize();
+        }
+
         // Lire la map des routes construite par AppStartupListener
         Object attr = getServletContext().getAttribute("urlMappings");
 
@@ -355,6 +363,24 @@ public class FrontControllerServlet extends HttpServlet {
             String fieldName = prefix + field.getName();
             Class<?> fieldType = field.getType();
 
+            if (fieldType == MapFile.class) {
+                if (!isMultipartRequest(request)) {
+                    continue;
+                }
+
+                try {
+                    MapFile uploadedFile = convertPartToMapFile(request.getPart(fieldName));
+                    if (uploadedFile != null) {
+                        saveUploadedFile(uploadedFile);
+                        field.set(object, uploadedFile);
+                    }
+                } catch (IOException | ServletException e) {
+                    throw new ReflectiveOperationException(
+                            "Impossible de récupérer le fichier '" + fieldName + "'", e);
+                }
+                continue;
+            }
+
             if (isSimpleType(fieldType)) {
                 String value = request.getParameter(fieldName);
                 if (value == null) {
@@ -480,7 +506,7 @@ public class FrontControllerServlet extends HttpServlet {
         return contentType != null && contentType.toLowerCase().startsWith("multipart/");
     }
 
-    private MapFile convertPartToMapFile(Part part) throws Exception {
+    private MapFile convertPartToMapFile(Part part) throws IOException {
         if (part == null || part.getSize() == 0) {
             return null;
         }
@@ -500,7 +526,25 @@ public class FrontControllerServlet extends HttpServlet {
         mapFile.setNameFile(fileName);
         mapFile.setExtensionFile(extension);
         mapFile.setContentFile(bytes);
+        mapFile.setContentType(part.getContentType());
 
         return mapFile;
+    }
+    
+    private void saveUploadedFile(MapFile mapFile) throws IOException, ServletException {
+        if (uploadDirectory == null) {
+            throw new ServletException(
+                    "Aucun chemin d'upload configure. Definissez le parametre de contexte 'upload.path'.");
+        }
+
+        Files.createDirectories(uploadDirectory);
+        String safeFileName = Paths.get(mapFile.getNameFile()).getFileName().toString();
+        Path destination = uploadDirectory.resolve(safeFileName).normalize();
+
+        if (!destination.getParent().equals(uploadDirectory)) {
+            throw new ServletException("Nom de fichier invalide : " + mapFile.getNameFile());
+        }
+
+        Files.write(destination, mapFile.getContentFile());
     }
 }

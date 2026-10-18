@@ -280,4 +280,6 @@ Andry
         extension
         tableau bytes
 
-    Dans l'instance de l'objet on regarde si contient un attribut de type MapFile
+    Dans l'instance de l'objet on regarde si contient un attribut de type MapFile si oui donc fait ce qu'il faut
+    Et aussi le chemin ou se trouve le fichier doit etre dans une variable et que c'est dans l'application de test qu'on definit cela 
+    Donc dans l'application de test il faut definir quelque part cela , peut etre dans un fichier de configuration personnaliser
