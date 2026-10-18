@@ -2,17 +2,25 @@ package servlet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import model.ModelAndView;
 import java.lang.reflect.Method;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 
@@ -23,15 +31,23 @@ import controller.UrlMapping;
 import controller.Utilitaire;
 import model.Mapping;
 import model.UrlMethod;
+import model.MapFile;
 
+@MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
 
     List<Class<?>> controllers;
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private Path uploadDirectory;
 
     @Override
     public void init() {
+        String configuredUploadPath = getServletContext().getInitParameter("upload.path");
+        if (configuredUploadPath != null && !configuredUploadPath.isBlank()) {
+            uploadDirectory = Paths.get(configuredUploadPath).toAbsolutePath().normalize();
+        }
+
         // Lire la map des routes construite par AppStartupListener
         Object attr = getServletContext().getAttribute("urlMappings");
 
@@ -283,54 +299,139 @@ public class FrontControllerServlet extends HttpServlet {
         return arguments;
     }
 
-    
-    // Construit automatiquement un objet à partir des paramètres HTTP.
-    // Les noms des paramètres doivent correspondre aux noms des attributs.
-    
+    // Construit automatiquement un objet à partir des paramètres HTTP
+    // Les noms des paramètres doivent correspondre aux noms des attributs
+
     private Object bindObject(Class<?> objectType,
             HttpServletRequest request) throws ReflectiveOperationException {
         Object object = createObject(objectType);
-        populateObject(object, request);
+        // populateObject(object, request);
+        
+        populateObject(object, request, "");
+
         return object;
     }
 
-    // Crée l'objet avec son constructeur sans argument. */
+    // Crée l'objet avec son constructeur sans argument
     private Object createObject(Class<?> objectType)
             throws ReflectiveOperationException {
         return objectType.getDeclaredConstructor().newInstance();
     }
 
-    // Remplit les attributs de l'objet à partir de la requête HTTP. */
+    // Remplit les attributs de l'objet à partir de la requête HTTP
+    // private void populateObject(Object object,
+    // HttpServletRequest request) throws IllegalAccessException {
+    // Class<?> objectType = object.getClass();
+
+    // for (Field field : objectType.getDeclaredFields()) {
+    // if (Modifier.isStatic(field.getModifiers())
+    // || Modifier.isFinal(field.getModifiers())) {
+    // continue;
+    // }
+
+    // String value = request.getParameter(field.getName());
+    // if (value == null) {
+    // continue;
+    // }
+
+    // try {
+    // Object convertedValue = convertValue(value, field.getType());
+    // field.setAccessible(true);
+    // field.set(object, convertedValue);
+    // } catch (IllegalArgumentException e) {
+    // throw new IllegalArgumentException(
+    // "Impossible de convertir le champ '"
+    // + field.getName() + "' vers "
+    // + field.getType().getSimpleName(),
+    // e);
+    // }
+    // }
+    // }
+
     private void populateObject(Object object,
-            HttpServletRequest request) throws IllegalAccessException {
+            HttpServletRequest request, String prefix)
+            throws ReflectiveOperationException {
+
         Class<?> objectType = object.getClass();
-
         for (Field field : objectType.getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers())
-                    || Modifier.isFinal(field.getModifiers())) {
+            if (Modifier.isStatic(field.getModifiers()) || Modifier.isFinal(field.getModifiers())) {
                 continue;
             }
 
-            String value = request.getParameter(field.getName());
-            if (value == null) {
+            field.setAccessible(true);
+
+            String fieldName = prefix + field.getName();
+            Class<?> fieldType = field.getType();
+
+            if (fieldType == MapFile.class) {
+                if (!isMultipartRequest(request)) {
+                    continue;
+                }
+
+                try {
+                    MapFile uploadedFile = convertPartToMapFile(request.getPart(fieldName));
+                    if (uploadedFile != null) {
+                        saveUploadedFile(uploadedFile);
+                        field.set(object, uploadedFile);
+                    }
+                } catch (IOException | ServletException e) {
+                    throw new ReflectiveOperationException(
+                            "Impossible de récupérer le fichier '" + fieldName + "'", e);
+                }
                 continue;
             }
 
-            try {
-                Object convertedValue = convertValue(value, field.getType());
-                field.setAccessible(true);
-                field.set(object, convertedValue);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException(
-                        "Impossible de convertir le champ '"
-                                + field.getName() + "' vers "
-                                + field.getType().getSimpleName(),
-                        e);
+            if (isSimpleType(fieldType)) {
+                String value = request.getParameter(fieldName);
+                if (value == null) {
+                    continue;
+                }
+                try {
+                    Object convertedValue = convertValue(value, fieldType);
+                    field.set(object, convertedValue);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Impossible de convertir le champ '" + fieldName + "' vers " + fieldType.getSimpleName(),e);
+                }
+
+            } else {
+                String nestedPrefix = fieldName + ".";
+                if (!hasParameters(request, nestedPrefix)) {
+                    continue;
+                }
+
+                try {
+                    Object nestedObject = createObject(fieldType);
+                    populateObject(
+                            nestedObject,
+                            request,
+                            nestedPrefix);
+
+                    field.set(object, nestedObject);
+
+                } catch (ReflectiveOperationException e) {
+                    throw e;
+                }
             }
         }
     }
 
-    // Indique si le type correspond à un paramètre simple. */
+    // Vérifie si la requête contient des paramètres pour l'objet imbriqué
+    private boolean hasParameters(HttpServletRequest request, String prefix) {
+
+        Enumeration<String> parameterNames = request.getParameterNames();
+
+        while (parameterNames.hasMoreElements()) {
+            String name = parameterNames.nextElement();
+
+            if (name.startsWith(prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Indique si le type correspond à un paramètre simple
     private boolean isSimpleType(Class<?> type) {
         return type == String.class
                 || type == boolean.class || type == Boolean.class
@@ -398,5 +499,52 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         throw new IllegalArgumentException("Type non supporté");
+    }
+
+    private boolean isMultipartRequest(HttpServletRequest request) {
+        String contentType = request.getContentType();
+        return contentType != null && contentType.toLowerCase().startsWith("multipart/");
+    }
+
+    private MapFile convertPartToMapFile(Part part) throws IOException {
+        if (part == null || part.getSize() == 0) {
+            return null;
+        }
+
+        String submittedName = part.getSubmittedFileName();
+        String fileName = submittedName == null ? "" : Paths.get(submittedName).getFileName().toString();
+
+        String extension = "";
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex >= 0) {
+            extension = fileName.substring(dotIndex + 1);
+        }
+
+        byte[] bytes = part.getInputStream().readAllBytes();
+
+        MapFile mapFile = new MapFile();
+        mapFile.setNameFile(fileName);
+        mapFile.setExtensionFile(extension);
+        mapFile.setContentFile(bytes);
+        mapFile.setContentType(part.getContentType());
+
+        return mapFile;
+    }
+    
+    private void saveUploadedFile(MapFile mapFile) throws IOException, ServletException {
+        if (uploadDirectory == null) {
+            throw new ServletException(
+                    "Aucun chemin d'upload configure. Definissez le parametre de contexte 'upload.path'.");
+        }
+
+        Files.createDirectories(uploadDirectory);
+        String safeFileName = Paths.get(mapFile.getNameFile()).getFileName().toString();
+        Path destination = uploadDirectory.resolve(safeFileName).normalize();
+
+        if (!destination.getParent().equals(uploadDirectory)) {
+            throw new ServletException("Nom de fichier invalide : " + mapFile.getNameFile());
+        }
+
+        Files.write(destination, mapFile.getContentFile());
     }
 }
