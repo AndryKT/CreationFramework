@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 
 import model.ModelAndView;
 import java.lang.reflect.Method;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 
@@ -30,8 +31,7 @@ import model.Mapping;
 import model.UrlMethod;
 import model.MapFile;
 
-
-@MultipartConfig 
+@MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
 
     List<Class<?>> controllers;
@@ -297,7 +297,10 @@ public class FrontControllerServlet extends HttpServlet {
     private Object bindObject(Class<?> objectType,
             HttpServletRequest request) throws ReflectiveOperationException {
         Object object = createObject(objectType);
-        populateObject(object, request);
+        // populateObject(object, request);
+        
+        populateObject(object, request, "");
+
         return object;
     }
 
@@ -308,33 +311,98 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     // Remplit les attributs de l'objet à partir de la requête HTTP
+    // private void populateObject(Object object,
+    // HttpServletRequest request) throws IllegalAccessException {
+    // Class<?> objectType = object.getClass();
+
+    // for (Field field : objectType.getDeclaredFields()) {
+    // if (Modifier.isStatic(field.getModifiers())
+    // || Modifier.isFinal(field.getModifiers())) {
+    // continue;
+    // }
+
+    // String value = request.getParameter(field.getName());
+    // if (value == null) {
+    // continue;
+    // }
+
+    // try {
+    // Object convertedValue = convertValue(value, field.getType());
+    // field.setAccessible(true);
+    // field.set(object, convertedValue);
+    // } catch (IllegalArgumentException e) {
+    // throw new IllegalArgumentException(
+    // "Impossible de convertir le champ '"
+    // + field.getName() + "' vers "
+    // + field.getType().getSimpleName(),
+    // e);
+    // }
+    // }
+    // }
+
     private void populateObject(Object object,
-            HttpServletRequest request) throws IllegalAccessException {
+            HttpServletRequest request, String prefix)
+            throws ReflectiveOperationException {
+
         Class<?> objectType = object.getClass();
-
         for (Field field : objectType.getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers())
-                    || Modifier.isFinal(field.getModifiers())) {
+            if (Modifier.isStatic(field.getModifiers()) || Modifier.isFinal(field.getModifiers())) {
                 continue;
             }
 
-            String value = request.getParameter(field.getName());
-            if (value == null) {
-                continue;
-            }
+            field.setAccessible(true);
 
-            try {
-                Object convertedValue = convertValue(value, field.getType());
-                field.setAccessible(true);
-                field.set(object, convertedValue);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException(
-                        "Impossible de convertir le champ '"
-                                + field.getName() + "' vers "
-                                + field.getType().getSimpleName(),
-                        e);
+            String fieldName = prefix + field.getName();
+            Class<?> fieldType = field.getType();
+
+            if (isSimpleType(fieldType)) {
+                String value = request.getParameter(fieldName);
+                if (value == null) {
+                    continue;
+                }
+                try {
+                    Object convertedValue = convertValue(value, fieldType);
+                    field.set(object, convertedValue);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Impossible de convertir le champ '" + fieldName + "' vers " + fieldType.getSimpleName(),e);
+                }
+
+            } else {
+                String nestedPrefix = fieldName + ".";
+                if (!hasParameters(request, nestedPrefix)) {
+                    continue;
+                }
+
+                try {
+                    Object nestedObject = createObject(fieldType);
+                    populateObject(
+                            nestedObject,
+                            request,
+                            nestedPrefix);
+
+                    field.set(object, nestedObject);
+
+                } catch (ReflectiveOperationException e) {
+                    throw e;
+                }
             }
         }
+    }
+
+    // Vérifie si la requête contient des paramètres pour l'objet imbriqué
+    private boolean hasParameters(HttpServletRequest request, String prefix) {
+
+        Enumeration<String> parameterNames = request.getParameterNames();
+
+        while (parameterNames.hasMoreElements()) {
+            String name = parameterNames.nextElement();
+
+            if (name.startsWith(prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Indique si le type correspond à un paramètre simple
