@@ -6,6 +6,7 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 import java.io.IOException;
@@ -32,9 +33,13 @@ import controller.Utilitaire;
 import model.Mapping;
 import model.UrlMethod;
 import model.MapFile;
+import model.MySession;
 
 @MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
+
+    private static final String MY_SESSION_ATTRIBUTE =
+            "__creation_framework_my_session";
 
     List<Class<?>> controllers;
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
@@ -188,6 +193,8 @@ public class FrontControllerServlet extends HttpServlet {
 
             Object result = controllerMethod.invoke(controllerInstance, arguments);
 
+            synchronizeMySession(request);
+
             if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
                 if (result instanceof String) {
                     response.setContentType("text/plain;charset=UTF-8");
@@ -273,6 +280,12 @@ public class FrontControllerServlet extends HttpServlet {
 
         for (int index = 0; index < parameters.length; index++) {
             Parameter parameter = parameters[index];
+
+            if (parameter.getType() == MySession.class) {
+                arguments[index] = getMySession(request);
+                continue;
+            }
+
             Param param = parameter.getAnnotation(Param.class);
             String parameterName = param != null ? param.value() : parameter.getName();
 
@@ -297,6 +310,38 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         return arguments;
+    }
+
+    
+    // Retourne l'unique MySession associee a la session HTTP courante.
+     
+    private MySession getMySession(HttpServletRequest request) {
+        HttpSession httpSession = request.getSession(true);
+        synchronized (httpSession) {
+            Object value = httpSession.getAttribute(MY_SESSION_ATTRIBUTE);
+
+            if (value instanceof MySession) {
+                return (MySession) value;
+            }
+
+            MySession session = new MySession();
+            httpSession.setAttribute(MY_SESSION_ATTRIBUTE, session);
+            return session;
+        }
+    }
+
+    // La MySession est deja stockee dans HttpSession. On la reinserre apres
+    // l'invocation afin que le conteneur prenne toujours la version courante.
+    private void synchronizeMySession(HttpServletRequest request) {
+        HttpSession httpSession = request.getSession(false);
+        if (httpSession == null) {
+            return;
+        }
+
+        Object value = httpSession.getAttribute(MY_SESSION_ATTRIBUTE);
+        if (value instanceof MySession) {
+            httpSession.setAttribute(MY_SESSION_ATTRIBUTE, value);
+        }
     }
 
     // Construit automatiquement un objet à partir des paramètres HTTP
