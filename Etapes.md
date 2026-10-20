@@ -283,3 +283,16 @@ Andry
     Dans l'instance de l'objet on regarde si contient un attribut de type MapFile si oui donc fait ce qu'il faut
     Et aussi le chemin ou se trouve le fichier doit etre dans une variable et que c'est dans l'application de test qu'on definit cela 
     Donc dans l'application de test il faut definir quelque part cela , peut etre dans un fichier de configuration personnaliser
+
+## Sprint 9:
+    Session:
+    Faire en sorte que la session soient disponible dans le controller de l'application testisMultipartRequest
+isMultipartRequest
+
+    Creer une class propre ex: MySession et si on le voit dans on l'injecte:
+        Map<String,object> 
+        creer des methode manampy , manala etc
+
+    Il faut que pour chaque session , il n'y a qu'une seule instance de session
+
+    Apres invoque , on met a jour l HttpSession , pour l'instant pour le faire on fait boucle du Map et on prends toujours le plus recent

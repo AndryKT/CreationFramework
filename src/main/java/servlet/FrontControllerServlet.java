@@ -318,36 +318,7 @@ public class FrontControllerServlet extends HttpServlet {
         return objectType.getDeclaredConstructor().newInstance();
     }
 
-    // Remplit les attributs de l'objet à partir de la requête HTTP
-    // private void populateObject(Object object,
-    // HttpServletRequest request) throws IllegalAccessException {
-    // Class<?> objectType = object.getClass();
-
-    // for (Field field : objectType.getDeclaredFields()) {
-    // if (Modifier.isStatic(field.getModifiers())
-    // || Modifier.isFinal(field.getModifiers())) {
-    // continue;
-    // }
-
-    // String value = request.getParameter(field.getName());
-    // if (value == null) {
-    // continue;
-    // }
-
-    // try {
-    // Object convertedValue = convertValue(value, field.getType());
-    // field.setAccessible(true);
-    // field.set(object, convertedValue);
-    // } catch (IllegalArgumentException e) {
-    // throw new IllegalArgumentException(
-    // "Impossible de convertir le champ '"
-    // + field.getName() + "' vers "
-    // + field.getType().getSimpleName(),
-    // e);
-    // }
-    // }
-    // }
-
+  
     private void populateObject(Object object,
             HttpServletRequest request, String prefix)
             throws ReflectiveOperationException {
