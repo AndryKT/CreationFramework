@@ -296,3 +296,10 @@ isMultipartRequest
     Il faut que pour chaque session , il n'y a qu'une seule instance de session
 
     Apres invoque , on met a jour l HttpSession , pour l'instant pour le faire on fait boucle du Map et on prends toujours le plus recent
+
+## Sprint 10
+Authentification
+il y a certain methode cote dev deloppeur qvec condition : il faut etre connecter pour executer la methode
+## Bis:
+Authentification et identification par role
+Il faut etre connecter et etre de type utilisateur specifique pour executer la megthode

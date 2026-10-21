@@ -4,11 +4,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Objet de session expose aux Controllers de l'application.
- * Une instance est conservee dans une HttpSession et est donc partagee
- * par les requetes appartenant a la meme session HTTP.
- */
+
 public class MySession implements Serializable {
 
     private static final long serialVersionUID = 1L;
