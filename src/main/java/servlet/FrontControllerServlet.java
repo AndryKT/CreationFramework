@@ -38,8 +38,7 @@ import model.MySession;
 @MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
 
-    private static final String MY_SESSION_ATTRIBUTE =
-            "__creation_framework_my_session";
+    private static final String MY_SESSION_ATTRIBUTE ="__creation_framework_my_session";
 
     List<Class<?>> controllers;
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
@@ -314,7 +313,6 @@ public class FrontControllerServlet extends HttpServlet {
 
     
     // Retourne l'unique MySession associee a la session HTTP courante.
-     
     private MySession getMySession(HttpServletRequest request) {
         HttpSession httpSession = request.getSession(true);
         synchronized (httpSession) {
@@ -330,8 +328,7 @@ public class FrontControllerServlet extends HttpServlet {
         }
     }
 
-    // La MySession est deja stockee dans HttpSession. On la reinserre apres
-    // l'invocation afin que le conteneur prenne toujours la version courante.
+    // Mise à jour de MySession
     private void synchronizeMySession(HttpServletRequest request) {
         HttpSession httpSession = request.getSession(false);
         if (httpSession == null) {
