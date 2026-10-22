@@ -34,6 +34,7 @@ import model.Mapping;
 import model.UrlMethod;
 import model.MapFile;
 import model.MySession;
+import controller.Auth;
 
 @MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
@@ -44,12 +45,19 @@ public class FrontControllerServlet extends HttpServlet {
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private Path uploadDirectory;
+    private String sessionKey;
 
     @Override
     public void init() {
         String configuredUploadPath = getServletContext().getInitParameter("upload.path");
+        String configureSessionKey = getServletContext().getInitParameter("auth.session.key");
+
         if (configuredUploadPath != null && !configuredUploadPath.isBlank()) {
             uploadDirectory = Paths.get(configuredUploadPath).toAbsolutePath().normalize();
+        }
+
+        if (configureSessionKey != null && !configureSessionKey.isBlank()) {
+            sessionKey = configureSessionKey;
         }
 
         // Lire la map des routes construite par AppStartupListener
@@ -189,6 +197,14 @@ public class FrontControllerServlet extends HttpServlet {
 
             Method controllerMethod = findControllerMethod(controllerClass, mapping, key);
             Object[] arguments = bindArguments(controllerMethod, request);
+
+            if(controllerMethod.isAnnotationPresent(Auth.class)) {
+                MySession mySession = getMySession(request);
+                if(mySession.get(sessionKey) == null) {
+                    response.sendRedirect(request.getContextPath() + "/login");
+                    return;
+                }
+            }
 
             Object result = controllerMethod.invoke(controllerInstance, arguments);
 
