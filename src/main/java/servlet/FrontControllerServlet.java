@@ -6,6 +6,7 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 import java.io.IOException;
@@ -32,9 +33,12 @@ import controller.Utilitaire;
 import model.Mapping;
 import model.UrlMethod;
 import model.MapFile;
+import model.MySession;
 
 @MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
+
+    private static final String MY_SESSION_ATTRIBUTE ="__creation_framework_my_session";
 
     List<Class<?>> controllers;
     HashMap<UrlMethod, Mapping> urlMappings = new HashMap<>();
@@ -188,6 +192,8 @@ public class FrontControllerServlet extends HttpServlet {
 
             Object result = controllerMethod.invoke(controllerInstance, arguments);
 
+            synchronizeMySession(request);
+
             if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
                 if (result instanceof String) {
                     response.setContentType("text/plain;charset=UTF-8");
@@ -273,6 +279,12 @@ public class FrontControllerServlet extends HttpServlet {
 
         for (int index = 0; index < parameters.length; index++) {
             Parameter parameter = parameters[index];
+
+            if (parameter.getType() == MySession.class) {
+                arguments[index] = getMySession(request);
+                continue;
+            }
+
             Param param = parameter.getAnnotation(Param.class);
             String parameterName = param != null ? param.value() : parameter.getName();
 
@@ -299,6 +311,36 @@ public class FrontControllerServlet extends HttpServlet {
         return arguments;
     }
 
+    
+    // Retourne l'unique MySession associee a la session HTTP courante.
+    private MySession getMySession(HttpServletRequest request) {
+        HttpSession httpSession = request.getSession(true);
+        synchronized (httpSession) {
+            Object value = httpSession.getAttribute(MY_SESSION_ATTRIBUTE);
+
+            if (value instanceof MySession) {
+                return (MySession) value;
+            }
+
+            MySession session = new MySession();
+            httpSession.setAttribute(MY_SESSION_ATTRIBUTE, session);
+            return session;
+        }
+    }
+
+    // Mise à jour de MySession
+    private void synchronizeMySession(HttpServletRequest request) {
+        HttpSession httpSession = request.getSession(false);
+        if (httpSession == null) {
+            return;
+        }
+
+        Object value = httpSession.getAttribute(MY_SESSION_ATTRIBUTE);
+        if (value instanceof MySession) {
+            httpSession.setAttribute(MY_SESSION_ATTRIBUTE, value);
+        }
+    }
+
     // Construit automatiquement un objet à partir des paramètres HTTP
     // Les noms des paramètres doivent correspondre aux noms des attributs
 
@@ -318,36 +360,7 @@ public class FrontControllerServlet extends HttpServlet {
         return objectType.getDeclaredConstructor().newInstance();
     }
 
-    // Remplit les attributs de l'objet à partir de la requête HTTP
-    // private void populateObject(Object object,
-    // HttpServletRequest request) throws IllegalAccessException {
-    // Class<?> objectType = object.getClass();
-
-    // for (Field field : objectType.getDeclaredFields()) {
-    // if (Modifier.isStatic(field.getModifiers())
-    // || Modifier.isFinal(field.getModifiers())) {
-    // continue;
-    // }
-
-    // String value = request.getParameter(field.getName());
-    // if (value == null) {
-    // continue;
-    // }
-
-    // try {
-    // Object convertedValue = convertValue(value, field.getType());
-    // field.setAccessible(true);
-    // field.set(object, convertedValue);
-    // } catch (IllegalArgumentException e) {
-    // throw new IllegalArgumentException(
-    // "Impossible de convertir le champ '"
-    // + field.getName() + "' vers "
-    // + field.getType().getSimpleName(),
-    // e);
-    // }
-    // }
-    // }
-
+  
     private void populateObject(Object object,
             HttpServletRequest request, String prefix)
             throws ReflectiveOperationException {
