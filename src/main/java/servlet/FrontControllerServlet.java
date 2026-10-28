@@ -137,72 +137,106 @@ public class FrontControllerServlet extends HttpServlet {
 
         response.setContentType("text/html;charset=UTF-8");
 
-        String path = request.getPathInfo();
-        String servletPath = request.getServletPath();
+        String path = resolveRequestPath(request);
 
-        if (path == null || "/".equals(path)) {
-            if (servletPath != null && !"".equals(servletPath) && !"/".equals(servletPath)) {
-                path = servletPath;
-            } else {
-                String requestUri = request.getRequestURI();
-                String contextPath = request.getContextPath();
-                if (requestUri != null && contextPath != null && requestUri.startsWith(contextPath)) {
-                    String suffix = requestUri.substring(contextPath.length());
-                    if (suffix != null && !"".equals(suffix) && !"/".equals(suffix)) {
-                        path = suffix;
-                    } else {
-                        path = "/";
-                    }
-                } else {
-                    path = "/";
-                }
-            }
-        }
-
-        if (path.endsWith(".jsp") || path.endsWith(".html") || path.endsWith(".css") || path.endsWith(".js")) {
-            request.getRequestDispatcher(path).forward(request, response);
+        if (isStaticResource(path)) {
+            forwardStaticResource(request, response, path);
             return;
         }
 
         String httpMethod = request.getMethod();
-
         UrlMethod key = new UrlMethod(path, httpMethod);
-
         Mapping mapping = urlMappings.get(key);
 
         if (mapping == null) {
-            PrintWriter out = response.getWriter();
-
-            out.println("<h3>URL inconnue</h3>");
-            out.println("URL demandée : " + path);
-            out.println("<br>Méthode HTTP : " + httpMethod);
-            out.println("<br><br>Routes disponibles :<br><br>");
-
-            for (UrlMethod urlKey : urlMappings.keySet()) {
-
-                Mapping m = urlMappings.get(urlKey);
-
-                out.println(
-                        urlKey.getMethod()
-                                + " "
-                                + urlKey.getUrl()
-                                + "<br>"
-                                + "Classe : " + m.getController()
-                                + "<br>"
-                                + "Méthode : " + m.getMethod()
-                                + "<br><br>");
-            }
-
-            throw new ServletException("URL inconnue : " + path);
+            handleUnknownRoute(response, path, httpMethod);
+            return;
         }
 
-        // Invocation du controller et traitement du ModelAndView si présent
-        try {
+        invokeController(request, response, path, httpMethod, key, mapping);
+    }
 
+    private String resolveRequestPath(HttpServletRequest request) {
+        String path = request.getPathInfo();
+        String servletPath = request.getServletPath();
+
+        if (path != null && !"/".equals(path)) {
+            return path;
+        }
+
+        if (servletPath != null && !"".equals(servletPath) && !"/".equals(servletPath)) {
+            return servletPath;
+        }
+
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+
+        if (requestUri != null
+                && contextPath != null
+                && requestUri.startsWith(contextPath)) {
+            String suffix = requestUri.substring(contextPath.length());
+            if (suffix != null && !"".equals(suffix) && !"/".equals(suffix)) {
+                return suffix;
+            }
+        }
+
+        return "/";
+    }
+
+    private boolean isStaticResource(String path) {
+        return path.endsWith(".jsp")
+                || path.endsWith(".html")
+                || path.endsWith(".css")
+                || path.endsWith(".js");
+    }
+
+    private void forwardStaticResource(HttpServletRequest request,
+            HttpServletResponse response,
+            String path)
+            throws ServletException, IOException {
+        request.getRequestDispatcher(path).forward(request, response);
+    }
+
+    private void handleUnknownRoute(HttpServletResponse response,
+            String path,
+            String httpMethod)
+            throws ServletException, IOException {
+        PrintWriter out = response.getWriter();
+
+        out.println("<h3>URL inconnue</h3>");
+        out.println("URL demandée : " + path);
+        out.println("<br>Méthode HTTP : " + httpMethod);
+        out.println("<br><br>Routes disponibles :<br><br>");
+
+        for (UrlMethod urlKey : urlMappings.keySet()) {
+            Mapping mapping = urlMappings.get(urlKey);
+
+            out.println(
+                    urlKey.getMethod()
+                            + " "
+                            + urlKey.getUrl()
+                            + "<br>"
+                            + "Classe : " + mapping.getController()
+                            + "<br>"
+                            + "Méthode : " + mapping.getMethod()
+                            + "<br><br>");
+        }
+
+        throw new ServletException("URL inconnue : " + path);
+    }
+
+    private void invokeController(HttpServletRequest request,
+            HttpServletResponse response,
+            String path,
+            String httpMethod,
+            UrlMethod requestedRoute,
+            Mapping mapping)
+            throws ServletException, IOException {
+        try {
             Class<?> controllerClass = Class.forName(mapping.getController());
             Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-            Method controllerMethod = findControllerMethod(controllerClass, mapping, key);
+            Method controllerMethod = findControllerMethod(controllerClass, mapping, requestedRoute);
             Object[] arguments = bindArguments(controllerMethod, request);
 
             if (!isAuthorized(controllerMethod, request, response)) {
