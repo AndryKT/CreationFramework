@@ -198,6 +198,7 @@ public class FrontControllerServlet extends HttpServlet {
 
         // Invocation du controller et traitement du ModelAndView si présent
         try {
+
             Class<?> controllerClass = Class.forName(mapping.getController());
             Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
