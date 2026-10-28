@@ -8,7 +8,7 @@ APP_NAME="ApplicationTestCreationFramework"
 LIB_PATH="lib/*"
 
 # Nom du JAR que vous allez créer
-FRAMEWORK_JAR="Sprint10-api.jar"
+FRAMEWORK_JAR="Sprint10-bis-api.jar"
 
 # Chemins de destination dans Tomcat
 TARGET_LIB_DIR="$TOMCAT_DIR/webapps/$APP_NAME/WEB-INF/lib"
@@ -53,6 +53,10 @@ mkdir -p "$TARGET_LIB_DIR"
 
 # Suppression de l'ancien .class de test s'il existait encore pour éviter les conflits
 rm -rf "$TOMCAT_DIR/webapps/$APP_NAME/WEB-INF/classes/servlet"
+
+# Un seul JAR du framework doit etre present. Sinon javac/Tomcat peut charger
+# une ancienne version de Auth.class avant celle qui contient roles().
+rm -f "$TARGET_LIB_DIR"/Sprint*-api.jar
 
 # Copie du JAR
 cp "$FRAMEWORK_JAR" "$TARGET_LIB_DIR/"

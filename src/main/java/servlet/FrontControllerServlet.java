@@ -46,11 +46,13 @@ public class FrontControllerServlet extends HttpServlet {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private Path uploadDirectory;
     private String sessionKey;
+    private String roleKey;
 
     @Override
     public void init() {
         String configuredUploadPath = getServletContext().getInitParameter("upload.path");
         String configureSessionKey = getServletContext().getInitParameter("auth.session.key");
+        String configuredRoleKey = getServletContext().getInitParameter("auth.role.key");
 
         if (configuredUploadPath != null && !configuredUploadPath.isBlank()) {
             uploadDirectory = Paths.get(configuredUploadPath).toAbsolutePath().normalize();
@@ -58,6 +60,10 @@ public class FrontControllerServlet extends HttpServlet {
 
         if (configureSessionKey != null && !configureSessionKey.isBlank()) {
             sessionKey = configureSessionKey;
+        }
+
+        if (configuredRoleKey != null && !configuredRoleKey.isBlank()) {
+            roleKey = configuredRoleKey;
         }
 
         // Lire la map des routes construite par AppStartupListener
@@ -198,12 +204,8 @@ public class FrontControllerServlet extends HttpServlet {
             Method controllerMethod = findControllerMethod(controllerClass, mapping, key);
             Object[] arguments = bindArguments(controllerMethod, request);
 
-            if(controllerMethod.isAnnotationPresent(Auth.class)) {
-                MySession mySession = getMySession(request);
-                if(mySession.get(sessionKey) == null) {
-                    response.sendRedirect(request.getContextPath() + "/login");
-                    return;
-                }
+            if (!isAuthorized(controllerMethod, request, response)) {
+                return;
             }
 
             Object result = controllerMethod.invoke(controllerInstance, arguments);
@@ -575,5 +577,71 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         Files.write(destination, mapFile.getContentFile());
+    }
+
+    private boolean isAuthorized(
+            Method controllerMethod,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws IOException {
+
+        Auth auth = controllerMethod.getAnnotation(Auth.class);
+
+        // Methode publique : aucune authentification requise.
+        if (auth == null) {
+            return true;
+        }
+
+        if (sessionKey == null || sessionKey.isBlank()) {
+            response.sendError(
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Configuration auth.session.key absente");
+            return false;
+        }
+
+        MySession session = getMySession(request);
+
+        // L'utilisateur doit d'abord etre connecte.
+        if (!session.contains(sessionKey)
+                || session.get(sessionKey) == null) {
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Authentification requise");
+            return false;
+        }
+
+        String[] requiredRoles = auth.roles();
+
+        // @Auth sans role signifie : utilisateur connecte uniquement.
+        if (requiredRoles.length == 0) {
+            return true;
+        }
+
+        if (roleKey == null || roleKey.isBlank()) {
+            response.sendError(
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Configuration auth.role.key absente");
+            return false;
+        }
+
+        Object currentRole = session.get(roleKey);
+        if (currentRole == null) {
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "Role absent");
+            return false;
+        }
+
+        for (String requiredRole : requiredRoles) {
+            if (requiredRole != null
+                    && requiredRole.equals(currentRole.toString())) {
+                return true;
+            }
+        }
+
+        response.sendError(
+                HttpServletResponse.SC_FORBIDDEN,
+                "Acces refuse");
+        return false;
     }
 }
