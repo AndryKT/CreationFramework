@@ -200,6 +200,7 @@ public class FrontControllerServlet extends HttpServlet {
 
             if(controllerMethod.isAnnotationPresent(Auth.class)) {
                 MySession mySession = getMySession(request);
+                // voir si l'utilisateur est connecté en vérifiant la présence de la clé dans MySession
                 if(mySession.get(sessionKey) == null) {
                     response.sendRedirect(request.getContextPath() + "/login");
                     return;
