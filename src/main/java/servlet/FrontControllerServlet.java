@@ -46,11 +46,13 @@ public class FrontControllerServlet extends HttpServlet {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private Path uploadDirectory;
     private String sessionKey;
+    private String roleKey;
 
     @Override
     public void init() {
         String configuredUploadPath = getServletContext().getInitParameter("upload.path");
         String configureSessionKey = getServletContext().getInitParameter("auth.session.key");
+        String configuredRoleKey = getServletContext().getInitParameter("auth.role.key");
 
         if (configuredUploadPath != null && !configuredUploadPath.isBlank()) {
             uploadDirectory = Paths.get(configuredUploadPath).toAbsolutePath().normalize();
@@ -58,6 +60,10 @@ public class FrontControllerServlet extends HttpServlet {
 
         if (configureSessionKey != null && !configureSessionKey.isBlank()) {
             sessionKey = configureSessionKey;
+        }
+
+        if (configuredRoleKey != null && !configuredRoleKey.isBlank()) {
+            roleKey = configuredRoleKey;
         }
 
         // Lire la map des routes construite par AppStartupListener
@@ -131,80 +137,110 @@ public class FrontControllerServlet extends HttpServlet {
 
         response.setContentType("text/html;charset=UTF-8");
 
-        String path = request.getPathInfo();
-        String servletPath = request.getServletPath();
+        String path = resolveRequestPath(request);
 
-        if (path == null || "/".equals(path)) {
-            if (servletPath != null && !"".equals(servletPath) && !"/".equals(servletPath)) {
-                path = servletPath;
-            } else {
-                String requestUri = request.getRequestURI();
-                String contextPath = request.getContextPath();
-                if (requestUri != null && contextPath != null && requestUri.startsWith(contextPath)) {
-                    String suffix = requestUri.substring(contextPath.length());
-                    if (suffix != null && !"".equals(suffix) && !"/".equals(suffix)) {
-                        path = suffix;
-                    } else {
-                        path = "/";
-                    }
-                } else {
-                    path = "/";
-                }
-            }
-        }
-
-        if (path.endsWith(".jsp") || path.endsWith(".html") || path.endsWith(".css") || path.endsWith(".js")) {
-            request.getRequestDispatcher(path).forward(request, response);
+        if (isStaticResource(path)) {
+            forwardStaticResource(request, response, path);
             return;
         }
 
         String httpMethod = request.getMethod();
-
         UrlMethod key = new UrlMethod(path, httpMethod);
-
         Mapping mapping = urlMappings.get(key);
 
         if (mapping == null) {
-            PrintWriter out = response.getWriter();
-
-            out.println("<h3>URL inconnue</h3>");
-            out.println("URL demandée : " + path);
-            out.println("<br>Méthode HTTP : " + httpMethod);
-            out.println("<br><br>Routes disponibles :<br><br>");
-
-            for (UrlMethod urlKey : urlMappings.keySet()) {
-
-                Mapping m = urlMappings.get(urlKey);
-
-                out.println(
-                        urlKey.getMethod()
-                                + " "
-                                + urlKey.getUrl()
-                                + "<br>"
-                                + "Classe : " + m.getController()
-                                + "<br>"
-                                + "Méthode : " + m.getMethod()
-                                + "<br><br>");
-            }
-
-            throw new ServletException("URL inconnue : " + path);
+            handleUnknownRoute(response, path, httpMethod);
+            return;
         }
 
-        // Invocation du controller et traitement du ModelAndView si présent
+        invokeController(request, response, path, httpMethod, key, mapping);
+    }
+
+    private String resolveRequestPath(HttpServletRequest request) {
+        String path = request.getPathInfo();
+        String servletPath = request.getServletPath();
+
+        if (path != null && !"/".equals(path)) {
+            return path;
+        }
+
+        if (servletPath != null && !"".equals(servletPath) && !"/".equals(servletPath)) {
+            return servletPath;
+        }
+
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+
+        if (requestUri != null
+                && contextPath != null
+                && requestUri.startsWith(contextPath)) {
+            String suffix = requestUri.substring(contextPath.length());
+            if (suffix != null && !"".equals(suffix) && !"/".equals(suffix)) {
+                return suffix;
+            }
+        }
+
+        return "/";
+    }
+
+    private boolean isStaticResource(String path) {
+        return path.endsWith(".jsp")
+                || path.endsWith(".html")
+                || path.endsWith(".css")
+                || path.endsWith(".js");
+    }
+
+    private void forwardStaticResource(HttpServletRequest request,
+            HttpServletResponse response,
+            String path)
+            throws ServletException, IOException {
+        request.getRequestDispatcher(path).forward(request, response);
+    }
+
+    private void handleUnknownRoute(HttpServletResponse response,
+            String path,
+            String httpMethod)
+            throws ServletException, IOException {
+        PrintWriter out = response.getWriter();
+
+        out.println("<h3>URL inconnue</h3>");
+        out.println("URL demandée : " + path);
+        out.println("<br>Méthode HTTP : " + httpMethod);
+        out.println("<br><br>Routes disponibles :<br><br>");
+
+        for (UrlMethod urlKey : urlMappings.keySet()) {
+            Mapping mapping = urlMappings.get(urlKey);
+
+            out.println(
+                    urlKey.getMethod()
+                            + " "
+                            + urlKey.getUrl()
+                            + "<br>"
+                            + "Classe : " + mapping.getController()
+                            + "<br>"
+                            + "Méthode : " + mapping.getMethod()
+                            + "<br><br>");
+        }
+
+        throw new ServletException("URL inconnue : " + path);
+    }
+
+    private void invokeController(HttpServletRequest request,
+            HttpServletResponse response,
+            String path,
+            String httpMethod,
+            UrlMethod requestedRoute,
+            Mapping mapping)
+            throws ServletException, IOException {
         try {
             Class<?> controllerClass = Class.forName(mapping.getController());
             Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-            Method controllerMethod = findControllerMethod(controllerClass, mapping, key);
+            Method controllerMethod = findControllerMethod(controllerClass, mapping, requestedRoute);
             Object[] arguments = bindArguments(controllerMethod, request);
 
-            if(controllerMethod.isAnnotationPresent(Auth.class)) {
-                MySession mySession = getMySession(request);
-                // voir si l'utilisateur est connecté en vérifiant la présence de la clé dans MySession
-                if(mySession.get(sessionKey) == null) {
-                    response.sendRedirect(request.getContextPath() + "/login");
-                    return;
-                }
+            if (!isAuthorized(controllerMethod, request, response)) {
+                return;
             }
 
             Object result = controllerMethod.invoke(controllerInstance, arguments);
@@ -576,5 +612,71 @@ public class FrontControllerServlet extends HttpServlet {
         }
 
         Files.write(destination, mapFile.getContentFile());
+    }
+
+    private boolean isAuthorized(
+            Method controllerMethod,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws IOException {
+
+        Auth auth = controllerMethod.getAnnotation(Auth.class);
+
+        // Methode publique : aucune authentification requise.
+        if (auth == null) {
+            return true;
+        }
+
+        if (sessionKey == null || sessionKey.isBlank()) {
+            response.sendError(
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Configuration auth.session.key absente");
+            return false;
+        }
+
+        MySession session = getMySession(request);
+
+        // L'utilisateur doit d'abord etre connecte.
+        if (!session.contains(sessionKey)
+                || session.get(sessionKey) == null) {
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Authentification requise");
+            return false;
+        }
+
+        String[] requiredRoles = auth.roles();
+
+        // @Auth sans role signifie : utilisateur connecte uniquement.
+        if (requiredRoles.length == 0) {
+            return true;
+        }
+
+        if (roleKey == null || roleKey.isBlank()) {
+            response.sendError(
+                    HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Configuration auth.role.key absente");
+            return false;
+        }
+
+        Object currentRole = session.get(roleKey);
+        if (currentRole == null) {
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "Role absent");
+            return false;
+        }
+
+        for (String requiredRole : requiredRoles) {
+            if (requiredRole != null
+                    && requiredRole.equals(currentRole.toString())) {
+                return true;
+            }
+        }
+
+        response.sendError(
+                HttpServletResponse.SC_FORBIDDEN,
+                "Acces refuse");
+        return false;
     }
 }
