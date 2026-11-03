@@ -296,10 +296,106 @@ isMultipartRequest
     Il faut que pour chaque session , il n'y a qu'une seule instance de session
 
     Apres invoque , on met a jour l HttpSession , pour l'instant pour le faire on fait boucle du Map et on prends toujours le plus recent
+---
 
-## Sprint 10
-Authentification
-il y a certain methode cote dev deloppeur qvec condition : il faut etre connecter pour executer la methode
+# Sprint 10 : Authentification
+
+## Objectif
+
+Permettre au developpeur de proteger certaines methodes d'un Controller.
+Une methode protegee ne peut etre executee que si une information indiquant
+que l'utilisateur est connecte existe dans sa session.
+
+## Etape 1 : creer l'annotation `@Auth`
+
+Creer une annotation applicable aux methodes :
+
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Auth {
+}
+```
+
+## Etape 2 : configurer la variable de session
+
+L'application de test doit definir le nom de la variable qui represente un
+utilisateur connecte. Cette configuration ne doit pas etre codee en dur dans
+le framework.
+
+Dans le `web.xml` de l'application de test :
+
+```xml
+<context-param>
+    <param-name>auth.session.key</param-name>
+    <param-value>utilisateurConnecte</param-value>
+</context-param>
+```
+
+La valeur `utilisateurConnecte` est un exemple. L'application peut choisir un
+autre nom.
+
+## Etape 3 : enregistrer l'utilisateur apres la connexion
+
+Le Controller de l'application de test utilise `MySession` :
+
+```java
+@UrlMapping(value = "/login", method = "POST")
+public String login(MySession session) {
+    session.add("utilisateurConnecte", "Andry");
+    return "Connexion reussie";
+}
+```
+
+Pour deconnecter l'utilisateur :
+
+```java
+session.remove("utilisateurConnecte");
+```
+
+## Etape 4 : proteger une methode
+
+Le developpeur ajoute `@Auth` sur la methode concernee :
+
+```java
+@Auth
+@UrlMapping(value = "/profil", method = "GET")
+public String profil(MySession session) {
+    return "Profil de " + session.get("utilisateurConnecte");
+}
+```
+
+## Etape 5 : verifier l'authentification dans le FrontController
+
+Avant d'invoquer la methode du Controller, le framework doit :
+
+1. verifier si la methode possede l'annotation `@Auth` ;
+2. recuperer la `MySession` de l'utilisateur courant ;
+3. lire la configuration `auth.session.key` ;
+4. verifier que cette cle existe dans la session ;
+5. autoriser l'invocation si la valeur existe ;
+6. refuser l'acces sinon.
+
+La verification doit etre faite avant :
+
+```java
+controllerMethod.invoke(controllerInstance, arguments);
+```
+
+Exemple de logique :
+
+```java
+if (controllerMethod.isAnnotationPresent(Auth.class)) {
+    String sessionKey = getServletContext()
+            .getInitParameter("auth.session.key");
+
+    if (sessionKey == null || !session.contains(sessionKey)) {
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+                "Authentification requise");
+        return;
+    }
+}
+```
 ## Bis:
 Authentification et identification par role
 Il faut etre connecter et etre de type utilisateur specifique pour executer la megthode

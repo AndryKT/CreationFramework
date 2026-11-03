@@ -8,7 +8,7 @@ APP_NAME="ApplicationTestCreationFramework"
 LIB_PATH="lib/*"
 
 # Nom du JAR que vous allez créer
-FRAMEWORK_JAR="Sprint9-api.jar"
+FRAMEWORK_JAR="Sprint10-api.jar"
 
 # Chemins de destination dans Tomcat
 TARGET_LIB_DIR="$TOMCAT_DIR/webapps/$APP_NAME/WEB-INF/lib"
